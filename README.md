@@ -5,7 +5,7 @@ This guide provides a complete, step-by-step procedure for setting up Laravel wi
 The instructions are intended for **development environments only**. Do not use example passwords or insecure configurations in production.
 
 ---
-
+ 
 ## Table of Contents
 
 1. [Prerequisites](#1-prerequisites)
