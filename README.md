@@ -1,177 +1,372 @@
-Laravel + PostgreSQL on Fedora Linux
-Panduan ini menjelaskan setup Laravel dengan PostgreSQL di Fedora Linux, dari instalasi PHP dan Composer hingga konfigurasi database, .env, migration, dan development server.
-Daftar Isi
-    1. Prasyarat
-    2. Update Sistem
-    3. Instalasi PHP
-    4. Instalasi Composer
-    5. Instalasi PostgreSQL
-    6. Konfigurasi Database
-    7. Konfigurasi pg_hba.conf
-    8. PHP PostgreSQL Extension
-    9. Membuat Project Laravel
-    10. Konfigurasi .env
-    11. Migration
-    12. Menjalankan Laravel
-    13. Verifikasi
-    14. Troubleshooting
-    15. Catatan Keamanan
-Prasyarat
-    • Fedora Linux
-    • Akun dengan akses sudo
-    • Koneksi internet
-    • Terminal
-Panduan ini ditujukan untuk development environment. Jangan gunakan password contoh seperti 123 untuk production.
-1. Update Sistem
+# Laravel + PostgreSQL Setup on Fedora Linux
+
+This guide provides a complete, step-by-step procedure for setting up Laravel with PostgreSQL on Fedora Linux. It covers system preparation, PHP and Composer installation, PostgreSQL configuration, database creation, Laravel project setup, environment configuration, migrations, and verification.
+
+The instructions are intended for **development environments only**. Do not use example passwords or insecure configurations in production.
+
+---
+
+## Table of Contents
+
+1. Prerequisites
+2. System Update
+3. PHP Installation
+4. Composer Installation
+5. PostgreSQL Installation
+6. Database Configuration
+7. pg_hba.conf Configuration
+8. PHP PostgreSQL Extension
+9. Creating a Laravel Project
+10. .env Configuration
+11. Running Migrations
+12. Running Laravel
+13. Verification
+14. Troubleshooting
+15. Security Notes
+16. Conclusion
+
+---
+
+## 1. Prerequisites
+
+Before starting, ensure you have:
+
+- Fedora Linux installed
+- A user account with `sudo` privileges
+- An active internet connection
+- A terminal emulator
+
+---
+
+## 2. System Update
+
+Update all installed packages to their latest versions:
+
 sudo dnf update -y
-Perintah ini memperbarui paket Fedora yang sudah terpasang.
-2. Instalasi PHP
-Aktifkan PHP 8.4 dari repository/module Remi:
+
+This ensures system stability and compatibility with the packages you will install next.
+3. PHP Installation
+
+Laravel requires PHP 8.1 or higher. This guide uses PHP 8.4 from the Remi repository.
+
+Enable the Remi module:
+bash
+
 sudo dnf module reset php
 sudo dnf module enable php:remi-8.4 -y
-Install PHP dan extension yang umum dibutuhkan Laravel:
+
+Install PHP and commonly required extensions for Laravel:
+bash
+
 sudo dnf install php php-cli php-fpm php-zip php-devel php-gd php-mbstring php-curl php-xml php-pear php-bcmath php-json php-opcache php-intl -y
-Periksa versi:
+
+Verify the PHP version:
+bash
+
 php -v
-Pastikan versi PHP sesuai dengan requirement versi Laravel yang digunakan.
-3. Instalasi Composer
-Composer adalah dependency manager untuk PHP dan digunakan Laravel untuk mengelola framework serta package.
+
+Ensure the version meets the requirements of the Laravel version you intend to use.
+4. Composer Installation
+
+Composer is the dependency manager for PHP and is required by Laravel.
+
+Download and install Composer:
+bash
+
 php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
 php composer-setup.php
 sudo mv composer.phar /usr/local/bin/composer
-Verifikasi:
+
+Verify the installation:
+bash
+
 composer --version
-4. Instalasi PostgreSQL
-Install PostgreSQL:
+
+5. PostgreSQL Installation
+
+Install PostgreSQL and its contributed utilities:
+bash
+
 sudo dnf install postgresql postgresql-server postgresql-contrib -y
-Inisialisasi database cluster:
+
+Initialize the database cluster:
+bash
+
 sudo postgresql-setup --initdb
-Jalankan dan aktifkan PostgreSQL:
+
+Enable and start the PostgreSQL service:
+bash
+
 sudo systemctl enable --now postgresql
-Periksa status:
+
+Check the service status:
+bash
+
 sudo systemctl status postgresql
-Status active (running) berarti PostgreSQL berjalan.
-5. Konfigurasi Database PostgreSQL
-Masuk sebagai administrator PostgreSQL:
+
+A status of active (running) indicates PostgreSQL is operational.
+6. Database Configuration
+
+Log in as the PostgreSQL administrator:
+bash
+
 sudo -u postgres psql
-Atur password administrator:
+
+Set a password for the postgres user:
+sql
+
 \password postgres
-Buat database:
+
+Create a new database for the Laravel application:
+sql
+
 CREATE DATABASE laravel_db;
-Buat user khusus aplikasi:
-CREATE USER laravel_user WITH PASSWORD 'GANTI_DENGAN_PASSWORD_ANDA';
-Berikan akses database:
+
+Create a dedicated application user:
+sql
+
+CREATE USER laravel_user WITH PASSWORD 'REPLACE_WITH_YOUR_PASSWORD';
+
+Grant all privileges on the database to the new user:
+sql
+
 GRANT ALL PRIVILEGES ON DATABASE laravel_db TO laravel_user;
-Pada PostgreSQL modern, permission schema dapat diperlukan untuk migration. Masuk ke database:
+
+In modern PostgreSQL versions, schema permissions are required for migrations. Connect to the database and grant the necessary rights:
+sql
+
 \c laravel_db
 GRANT USAGE, CREATE ON SCHEMA public TO laravel_user;
-Keluar:
+
+Exit the PostgreSQL prompt:
+sql
+
 \q
-Mengapa membuat user khusus? Agar aplikasi Laravel tidak menggunakan akun administrator PostgreSQL.
-6. Konfigurasi pg_hba.conf
-File ini menentukan metode autentikasi koneksi PostgreSQL.
-Buka:
+
+Why create a dedicated user?
+Using a separate user prevents the Laravel application from running with administrator privileges, which is a critical security practice.
+7. pg_hba.conf Configuration
+
+The pg_hba.conf file controls client authentication for PostgreSQL. Edit the file:
+bash
+
 sudo nano /var/lib/pgsql/data/pg_hba.conf
-Untuk instalasi PostgreSQL modern, konfigurasi lokal dapat menggunakan:
+
+For modern PostgreSQL installations, use scram-sha-256 for local and host connections:
+conf
+
 local   all   all                         scram-sha-256
 host    all   all   127.0.0.1/32         scram-sha-256
 host    all   all   ::1/128               scram-sha-256
-SCRAM-SHA-256 direkomendasikan untuk instalasi PostgreSQL modern. Jika tutorial lama meminta md5, jangan mengubah konfigurasi secara membabi buta; sesuaikan aturan yang diperlukan.
-Setelah perubahan:
+
+scram-sha-256 is the recommended authentication method. Do not blindly change settings to md5 based on outdated tutorials.
+
+After making changes, restart PostgreSQL:
+bash
+
 sudo systemctl restart postgresql
-7. PHP PostgreSQL Extension
-Install driver PostgreSQL untuk PHP:
+
+8. PHP PostgreSQL Extension
+
+Install the PostgreSQL driver for PHP:
+bash
+
 sudo dnf install php-pgsql php-pdo_pgsql -y
-Restart PHP-FPM:
+
+Restart PHP-FPM to load the new extensions:
+bash
+
 sudo systemctl restart php-fpm
-Verifikasi:
+
+Verify the extensions are loaded:
+bash
+
 php -m | grep -E 'pgsql|pdo_pgsql'
-Output seharusnya memuat:
+
+Expected output:
+text
+
 pdo_pgsql
 pgsql
-8. Membuat Project Laravel
-Buat project:
-composer create-project laravel/laravel belajar-laravel
-Masuk ke project:
-cd belajar-laravel
-Jika .env belum tersedia:
+
+9. Creating a Laravel Project
+
+Create a new Laravel project using Composer:
+bash
+
+composer create-project laravel/laravel laravel-app
+
+Navigate into the project directory:
+bash
+
+cd laravel-app
+
+If the .env file is missing, copy the example file:
+bash
+
 cp .env.example .env
-Generate application key:
+
+Generate the application key:
+bash
+
 php artisan key:generate
-APP_KEY digunakan Laravel untuk kebutuhan keamanan seperti enkripsi. Jangan membagikannya atau memasukkannya ke repository.
-9. Konfigurasi .env
-Buka:
+
+The APP_KEY is used by Laravel for encryption and other security features. Never share it or commit it to a repository.
+10. .env Configuration
+
+Open the .env file for editing:
+bash
+
 nano .env
-Atur database menjadi:
+
+Update the database connection settings:
+env
+
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
 DB_PORT=5432
 DB_DATABASE=laravel_db
 DB_USERNAME=laravel_user
-DB_PASSWORD=GANTI_DENGAN_PASSWORD_ANDA
-Keterangan:
-Variable          Fungsi
+DB_PASSWORD=REPLACE_WITH_YOUR_PASSWORD
 
-DB_CONNECTION   Driver database DB_HOST         Alamat PostgreSQL DB_PORT         Port PostgreSQL, biasanya 5432 DB_DATABASE     Nama database DB_USERNAME     User database DB_PASSWORD     Password user database
-Jangan commit .env karena dapat berisi credential.
-Jika Laravel masih menggunakan konfigurasi lama:
+Variable reference:
+Variable	Purpose
+DB_CONNECTION	Database driver
+DB_HOST	PostgreSQL host address
+DB_PORT	PostgreSQL port (default 5432)
+DB_DATABASE	Database name
+DB_USERNAME	Database user
+DB_PASSWORD	Database user password
+
+Important: Do not commit the .env file to version control, as it contains sensitive credentials.
+
+If Laravel caches old configuration, clear it:
+bash
+
 php artisan config:clear
-10. Menjalankan Migration
-Jalankan:
+
+11. Running Migrations
+
+Execute the database migrations:
+bash
+
 php artisan migrate
-Migration akan membuat tabel yang diperlukan Laravel pada laravel_db.
-Jika berhasil, berarti Laravel sudah dapat terhubung ke PostgreSQL.
-11. Menjalankan Laravel
-Jalankan development server:
+
+This creates the necessary tables for Laravel in the laravel_db database. A successful migration confirms that Laravel can connect to PostgreSQL.
+12. Running Laravel
+
+Start the development server:
+bash
+
 php artisan serve
-Biasanya aplikasi tersedia di:
+
+The application will be available at:
+text
+
 http://127.0.0.1:8000
-Hentikan server dengan Ctrl + C.
-12. Verifikasi Instalasi
-PHP:
+
+Stop the server with Ctrl + C.
+13. Verification
+
+Verify each component of the setup:
+
+PHP version:
+bash
+
 php -v
-Composer:
+
+Composer version:
+bash
+
 composer --version
-PostgreSQL:
+
+PostgreSQL status:
+bash
+
 sudo systemctl status postgresql
-Driver PHP:
+
+PHP PostgreSQL driver:
+bash
+
 php -m | grep -E 'pgsql|pdo_pgsql'
-Laravel:
+
+Laravel version:
+bash
+
 php artisan --version
-Status migration:
+
+Migration status:
+bash
+
 php artisan migrate:status
-Jika migrate:status dapat berjalan tanpa error koneksi, Laravel berhasil berkomunikasi dengan PostgreSQL.
-Troubleshooting
+
+If migrate:status runs without connection errors, Laravel is successfully communicating with PostgreSQL.
+14. Troubleshooting
 could not find driver
-Install driver:
+
+Install the PostgreSQL driver for PHP:
+bash
+
 sudo dnf install php-pgsql php-pdo_pgsql -y
-Periksa:
+
+Verify:
+bash
+
 php -m | grep -E 'pgsql|pdo_pgsql'
+
 password authentication failed
-Periksa kembali:
+
+Check the credentials in .env:
+env
+
 DB_USERNAME=laravel_user
 DB_PASSWORD=your_password
-Kemudian:
+
+Then clear the configuration cache:
+bash
+
 php artisan config:clear
+
 connection refused
-Periksa PostgreSQL:
+
+Check if PostgreSQL is running:
+bash
+
 sudo systemctl status postgresql
-Jika berhenti:
+
+If stopped, start it:
+bash
+
 sudo systemctl start postgresql
-Pastikan .env menggunakan:
+
+Ensure .env uses:
+env
+
 DB_HOST=127.0.0.1
 DB_PORT=5432
+
 permission denied for schema public
-Masuk ke PostgreSQL:
+
+Log in to PostgreSQL as administrator:
+bash
+
 sudo -u postgres psql
-Lalu:
+
+Connect to the database and grant schema permissions:
+sql
+
 \c laravel_db
 GRANT USAGE, CREATE ON SCHEMA public TO laravel_user;
-Keluar:
 \q
-Kemudian:
+
+Then retry migrations:
+bash
+
 php artisan migrate
-Alur Setup
+
+15. Setup Flow
+text
+
 Fedora Linux
     ↓
 PHP + Extensions
@@ -191,17 +386,26 @@ Laravel Project
 php artisan migrate
     ↓
 php artisan serve
-Catatan Keamanan
-Untuk development, konfigurasi di atas sudah cukup sebagai dasar. Untuk production:
-    • gunakan password yang kuat;
-    • jangan gunakan user PostgreSQL administrator untuk aplikasi;
-    • jangan commit .env;
-    • gunakan HTTPS;
-    • batasi akses database;
-    • siapkan backup database;
-    • konfigurasi web server dan PHP-FPM dengan benar;
-    • sesuaikan versi PHP dengan requirement Laravel;
-    • gunakan secret management yang sesuai.
-Kesimpulan
-Setup Laravel + PostgreSQL di Fedora terdiri dari beberapa lapisan: PHP menjalankan Laravel, Composer mengelola dependency, PostgreSQL menyimpan data, dan konfigurasi .env menghubungkan Laravel dengan database.
-Setelah php artisan migrate berhasil dan php artisan serve dapat membuka aplikasi, environment dasar Laravel + PostgreSQL sudah siap digunakan untuk pengembangan lebih lanjut.
+
+16. Security Notes
+
+The configuration in this guide is suitable for development. For production, consider the following:
+    Use strong, unique passwords.
+    Never use the PostgreSQL administrator account for the application.
+    Never commit the .env file to version control.
+    Enable HTTPS.
+    Restrict database access to trusted hosts.
+    Implement regular database backups.
+    Properly configure the web server and PHP-FPM.
+    Match the PHP version to Laravel's requirements.
+    Use a dedicated secret management solution.
+
+17. Conclusion
+
+Setting up Laravel with PostgreSQL on Fedora involves multiple layers:
+    PHP runs Laravel.
+    Composer manages dependencies.
+    PostgreSQL stores data.
+    The .env file connects Laravel to the database.
+
+Once php artisan migrate succeeds and php artisan serve launches the application, your basic Laravel + PostgreSQL development environment is ready for further development.
