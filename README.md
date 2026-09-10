@@ -8,22 +8,23 @@ The instructions are intended for **development environments only**. Do not use 
 
 ## Table of Contents
 
-1. Prerequisites
-2. System Update
-3. PHP Installation
-4. Composer Installation
-5. PostgreSQL Installation
-6. Database Configuration
-7. pg_hba.conf Configuration
-8. PHP PostgreSQL Extension
-9. Creating a Laravel Project
-10. .env Configuration
-11. Running Migrations
-12. Running Laravel
-13. Verification
-14. Troubleshooting
-15. Security Notes
-16. Conclusion
+1. [Prerequisites](#1-prerequisites)
+2. [System Update](#2-system-update)
+3. [PHP Installation](#3-php-installation)
+4. [Composer Installation](#4-composer-installation)
+5. [PostgreSQL Installation](#5-postgresql-installation)
+6. [Database Configuration](#6-database-configuration)
+7. [pg_hba.conf Configuration](#7-pg_hbaconf-configuration)
+8. [PHP PostgreSQL Extension](#8-php-postgresql-extension)
+9. [Creating a Laravel Project](#9-creating-a-laravel-project)
+10. [.env Configuration](#10-env-configuration)
+11. [Running Migrations](#11-running-migrations)
+12. [Running Laravel](#12-running-laravel)
+13. [Verification](#13-verification)
+14. [Troubleshooting](#14-troubleshooting)
+15. [Security Notes](#15-security-notes)
+16. [Setup Flow](#16-setup-flow)
+17. [Conclusion](#17-conclusion)
 
 ---
 
@@ -42,331 +43,436 @@ Before starting, ensure you have:
 
 Update all installed packages to their latest versions:
 
+```bash
 sudo dnf update -y
+```
 
 This ensures system stability and compatibility with the packages you will install next.
-3. PHP Installation
+
+---
+
+## 3. PHP Installation
 
 Laravel requires PHP 8.1 or higher. This guide uses PHP 8.4 from the Remi repository.
 
 Enable the Remi module:
-bash
 
+```bash
 sudo dnf module reset php
 sudo dnf module enable php:remi-8.4 -y
+```
 
 Install PHP and commonly required extensions for Laravel:
-bash
 
+```bash
 sudo dnf install php php-cli php-fpm php-zip php-devel php-gd php-mbstring php-curl php-xml php-pear php-bcmath php-json php-opcache php-intl -y
+```
 
 Verify the PHP version:
-bash
 
+```bash
 php -v
+```
 
 Ensure the version meets the requirements of the Laravel version you intend to use.
-4. Composer Installation
+
+---
+
+## 4. Composer Installation
 
 Composer is the dependency manager for PHP and is required by Laravel.
 
 Download and install Composer:
-bash
 
+```bash
 php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
 php composer-setup.php
 sudo mv composer.phar /usr/local/bin/composer
+```
 
 Verify the installation:
-bash
 
+```bash
 composer --version
+```
 
-5. PostgreSQL Installation
+---
+
+## 5. PostgreSQL Installation
 
 Install PostgreSQL and its contributed utilities:
-bash
 
+```bash
 sudo dnf install postgresql postgresql-server postgresql-contrib -y
+```
 
 Initialize the database cluster:
-bash
 
+```bash
 sudo postgresql-setup --initdb
+```
 
 Enable and start the PostgreSQL service:
-bash
 
+```bash
 sudo systemctl enable --now postgresql
+```
 
 Check the service status:
-bash
 
+```bash
 sudo systemctl status postgresql
+```
 
-A status of active (running) indicates PostgreSQL is operational.
-6. Database Configuration
+A status of `active (running)` indicates PostgreSQL is operational.
+
+---
+
+## 6. Database Configuration
 
 Log in as the PostgreSQL administrator:
-bash
 
+```bash
 sudo -u postgres psql
+```
 
 Set a password for the postgres user:
-sql
 
+```sql
 \password postgres
+```
 
 Create a new database for the Laravel application:
-sql
 
+```sql
 CREATE DATABASE laravel_db;
+```
 
 Create a dedicated application user:
-sql
 
+```sql
 CREATE USER laravel_user WITH PASSWORD 'REPLACE_WITH_YOUR_PASSWORD';
+```
 
 Grant all privileges on the database to the new user:
-sql
 
+```sql
 GRANT ALL PRIVILEGES ON DATABASE laravel_db TO laravel_user;
+```
 
 In modern PostgreSQL versions, schema permissions are required for migrations. Connect to the database and grant the necessary rights:
-sql
 
+```sql
 \c laravel_db
 GRANT USAGE, CREATE ON SCHEMA public TO laravel_user;
+```
 
 Exit the PostgreSQL prompt:
-sql
 
+```sql
 \q
+```
 
-Why create a dedicated user?
+### Why create a dedicated user?
+
 Using a separate user prevents the Laravel application from running with administrator privileges, which is a critical security practice.
-7. pg_hba.conf Configuration
 
-The pg_hba.conf file controls client authentication for PostgreSQL. Edit the file:
-bash
+---
 
+## 7. pg_hba.conf Configuration
+
+The `pg_hba.conf` file controls client authentication for PostgreSQL. Edit the file:
+
+```bash
 sudo nano /var/lib/pgsql/data/pg_hba.conf
+```
 
-For modern PostgreSQL installations, use scram-sha-256 for local and host connections:
-conf
+For modern PostgreSQL installations, use `scram-sha-256` for local and host connections:
 
+```conf
 local   all   all                         scram-sha-256
 host    all   all   127.0.0.1/32         scram-sha-256
 host    all   all   ::1/128               scram-sha-256
+```
 
-scram-sha-256 is the recommended authentication method. Do not blindly change settings to md5 based on outdated tutorials.
+`scram-sha-256` is the recommended authentication method. Do not blindly change settings to `md5` based on outdated tutorials.
 
 After making changes, restart PostgreSQL:
-bash
 
+```bash
 sudo systemctl restart postgresql
+```
 
-8. PHP PostgreSQL Extension
+---
+
+## 8. PHP PostgreSQL Extension
 
 Install the PostgreSQL driver for PHP:
-bash
 
+```bash
 sudo dnf install php-pgsql php-pdo_pgsql -y
+```
 
 Restart PHP-FPM to load the new extensions:
-bash
 
+```bash
 sudo systemctl restart php-fpm
+```
 
 Verify the extensions are loaded:
-bash
 
+```bash
 php -m | grep -E 'pgsql|pdo_pgsql'
+```
 
 Expected output:
-text
 
+```
 pdo_pgsql
 pgsql
+```
 
-9. Creating a Laravel Project
+---
+
+## 9. Creating a Laravel Project
 
 Create a new Laravel project using Composer:
-bash
 
+```bash
 composer create-project laravel/laravel laravel-app
+```
 
 Navigate into the project directory:
-bash
 
+```bash
 cd laravel-app
+```
 
-If the .env file is missing, copy the example file:
-bash
+If the `.env` file is missing, copy the example file:
 
+```bash
 cp .env.example .env
+```
 
 Generate the application key:
-bash
 
+```bash
 php artisan key:generate
+```
 
-The APP_KEY is used by Laravel for encryption and other security features. Never share it or commit it to a repository.
-10. .env Configuration
+The `APP_KEY` is used by Laravel for encryption and other security features. Never share it or commit it to a repository.
 
-Open the .env file for editing:
-bash
+---
 
+## 10. .env Configuration
+
+Open the `.env` file for editing:
+
+```bash
 nano .env
+```
 
 Update the database connection settings:
-env
 
+```env
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
 DB_PORT=5432
 DB_DATABASE=laravel_db
 DB_USERNAME=laravel_user
 DB_PASSWORD=REPLACE_WITH_YOUR_PASSWORD
+```
 
-Variable reference:
-Variable	Purpose
-DB_CONNECTION	Database driver
-DB_HOST	PostgreSQL host address
-DB_PORT	PostgreSQL port (default 5432)
-DB_DATABASE	Database name
-DB_USERNAME	Database user
-DB_PASSWORD	Database user password
+### Variable Reference
 
-Important: Do not commit the .env file to version control, as it contains sensitive credentials.
+| Variable | Purpose |
+|----------|---------|
+| `DB_CONNECTION` | Database driver |
+| `DB_HOST` | PostgreSQL host address |
+| `DB_PORT` | PostgreSQL port (default 5432) |
+| `DB_DATABASE` | Database name |
+| `DB_USERNAME` | Database user |
+| `DB_PASSWORD` | Database user password |
+
+**Important:** Do not commit the `.env` file to version control, as it contains sensitive credentials.
 
 If Laravel caches old configuration, clear it:
-bash
 
+```bash
 php artisan config:clear
+```
 
-11. Running Migrations
+---
+
+## 11. Running Migrations
 
 Execute the database migrations:
-bash
 
+```bash
 php artisan migrate
+```
 
-This creates the necessary tables for Laravel in the laravel_db database. A successful migration confirms that Laravel can connect to PostgreSQL.
-12. Running Laravel
+This creates the necessary tables for Laravel in the `laravel_db` database. A successful migration confirms that Laravel can connect to PostgreSQL.
+
+---
+
+## 12. Running Laravel
 
 Start the development server:
-bash
 
+```bash
 php artisan serve
+```
 
 The application will be available at:
-text
 
+```
 http://127.0.0.1:8000
+```
 
-Stop the server with Ctrl + C.
-13. Verification
+Stop the server with `Ctrl + C`.
+
+---
+
+## 13. Verification
 
 Verify each component of the setup:
 
-PHP version:
-bash
+**PHP version:**
 
+```bash
 php -v
+```
 
-Composer version:
-bash
+**Composer version:**
 
+```bash
 composer --version
+```
 
-PostgreSQL status:
-bash
+**PostgreSQL status:**
 
+```bash
 sudo systemctl status postgresql
+```
 
-PHP PostgreSQL driver:
-bash
+**PHP PostgreSQL driver:**
 
+```bash
 php -m | grep -E 'pgsql|pdo_pgsql'
+```
 
-Laravel version:
-bash
+**Laravel version:**
 
+```bash
 php artisan --version
+```
 
-Migration status:
-bash
+**Migration status:**
 
+```bash
 php artisan migrate:status
+```
 
-If migrate:status runs without connection errors, Laravel is successfully communicating with PostgreSQL.
-14. Troubleshooting
-could not find driver
+If `migrate:status` runs without connection errors, Laravel is successfully communicating with PostgreSQL.
+
+---
+
+## 14. Troubleshooting
+
+### could not find driver
 
 Install the PostgreSQL driver for PHP:
-bash
 
+```bash
 sudo dnf install php-pgsql php-pdo_pgsql -y
+```
 
 Verify:
-bash
 
+```bash
 php -m | grep -E 'pgsql|pdo_pgsql'
+```
 
-password authentication failed
+### password authentication failed
 
-Check the credentials in .env:
-env
+Check the credentials in `.env`:
 
+```env
 DB_USERNAME=laravel_user
 DB_PASSWORD=your_password
+```
 
 Then clear the configuration cache:
-bash
 
+```bash
 php artisan config:clear
+```
 
-connection refused
+### connection refused
 
 Check if PostgreSQL is running:
-bash
 
+```bash
 sudo systemctl status postgresql
+```
 
 If stopped, start it:
-bash
 
+```bash
 sudo systemctl start postgresql
+```
 
-Ensure .env uses:
-env
+Ensure `.env` uses:
 
+```env
 DB_HOST=127.0.0.1
 DB_PORT=5432
+```
 
-permission denied for schema public
+### permission denied for schema public
 
 Log in to PostgreSQL as administrator:
-bash
 
+```bash
 sudo -u postgres psql
+```
 
 Connect to the database and grant schema permissions:
-sql
 
+```sql
 \c laravel_db
 GRANT USAGE, CREATE ON SCHEMA public TO laravel_user;
 \q
+```
 
 Then retry migrations:
-bash
 
+```bash
 php artisan migrate
+```
 
-15. Setup Flow
-text
+---
 
+## 15. Security Notes
+
+The configuration in this guide is suitable for development. For production, consider the following:
+
+- Use strong, unique passwords
+- Never use the PostgreSQL administrator account for the application
+- Never commit the `.env` file to version control
+- Enable HTTPS
+- Restrict database access to trusted hosts
+- Implement regular database backups
+- Properly configure the web server and PHP-FPM
+- Match the PHP version to Laravel's requirements
+- Use a dedicated secret management solution
+
+---
+
+## 16. Setup Flow
+
+```
 Fedora Linux
     ↓
 PHP + Extensions
@@ -386,26 +492,17 @@ Laravel Project
 php artisan migrate
     ↓
 php artisan serve
+```
 
-16. Security Notes
+---
 
-The configuration in this guide is suitable for development. For production, consider the following:
-    Use strong, unique passwords.
-    Never use the PostgreSQL administrator account for the application.
-    Never commit the .env file to version control.
-    Enable HTTPS.
-    Restrict database access to trusted hosts.
-    Implement regular database backups.
-    Properly configure the web server and PHP-FPM.
-    Match the PHP version to Laravel's requirements.
-    Use a dedicated secret management solution.
-
-17. Conclusion
+## 17. Conclusion
 
 Setting up Laravel with PostgreSQL on Fedora involves multiple layers:
-    PHP runs Laravel.
-    Composer manages dependencies.
-    PostgreSQL stores data.
-    The .env file connects Laravel to the database.
 
-Once php artisan migrate succeeds and php artisan serve launches the application, your basic Laravel + PostgreSQL development environment is ready for further development.
+- **PHP** runs Laravel
+- **Composer** manages dependencies
+- **PostgreSQL** stores data
+- The **.env file** connects Laravel to the database
+
+Once `php artisan migrate` succeeds and `php artisan serve` launches the application, your basic Laravel + PostgreSQL development environment is ready for further development.
